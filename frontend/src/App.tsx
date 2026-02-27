@@ -7,33 +7,22 @@ function App() {
   const [count, setCount] = useState<number>(0)
   const [loading, setLoading] = useState<boolean>(false)
 
-  // Fetch initial count on component mount
   useEffect(() => {
     fetch(`${API_BASE}/count`)
       .then(res => res.json())
-      .then(data => {
-        setCount(data.count)
-      })
-      .catch(err => {
-        console.error("Error fetching count:", err)
-      })
+      .then(data => setCount(data.count))
+      .catch(err => console.error("Error fetching count:", err))
   }, [])
 
-  // Call FastAPI increment endpoint
   const handleIncrement = async () => {
     try {
       setLoading(true)
-
       const response = await fetch(`${API_BASE}/increment`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        }
+        headers: { "Content-Type": "application/json" },
       })
-
       const data = await response.json()
       setCount(data.count)
-
     } catch (error) {
       console.error("Error incrementing count:", error)
     } finally {
@@ -42,15 +31,24 @@ function App() {
   }
 
   return (
-    <>
-      <h1>Vite + React + FastAPI</h1>
-
+    <div className="app-container">
       <div className="card">
-        <button onClick={handleIncrement} disabled={loading}>
-          {loading ? "Updating..." : `count is ${count}`}
+        <h1 className="title">Counter Dashboard</h1>
+        <p className="subtitle">Connected to FastAPI backend</p>
+
+        <div className="count-display">
+          {count}
+        </div>
+
+        <button 
+          className="primary-btn"
+          onClick={handleIncrement}
+          disabled={loading}
+        >
+          {loading ? "Updating..." : "Increment"}
         </button>
       </div>
-    </>
+    </div>
   )
 }
 
