@@ -1,8 +1,12 @@
 import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from database import init_db
+from apis.notes import router as notes_router
 
-app = FastAPI()
+app = FastAPI(title="Notes Backend API")
+
+
 
 app.add_middleware(
     CORSMiddleware,
@@ -12,24 +16,16 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-@app.get("/")
-def root():
-    return {"message": "Hello FastAPI"}
 
-count = 0  # global counter
 
-@app.post("/increment")
-def increment_count():
-    global count
-    count += 1
-    return {
-        "message": "Count increased",
-        "count": count
-    }
 
-@app.get("/count")
-def get_count():
-    return {"count": count}
+# Initialize DB file
+init_db()
+
+# Register routers
+app.include_router(notes_router)
+
+
 
 if __name__ == "__main__":
     uvicorn.run(
