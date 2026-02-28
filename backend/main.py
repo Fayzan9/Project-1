@@ -3,6 +3,8 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from database import init_db
 from apis.notes import router as notes_router
+from apis.tags import router as tags_router
+
 
 app = FastAPI(title="Notes Backend API")
 
@@ -24,7 +26,7 @@ init_db()
 
 # Register routers
 app.include_router(notes_router)
-
+app.include_router(tags_router)
 
 
 if __name__ == "__main__":
