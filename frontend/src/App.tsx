@@ -1,55 +1,110 @@
-import { useEffect, useState } from 'react'
-import './App.css'
+import { useEffect, useState } from "react";
+import NoteCard from "./components/NoteCard";
+import "./index.css"
 
-const API_BASE = "http://localhost:8000"
+type Note = {
+  id: string;
+  title: string;
+  content: string;
+  tags: string[];
+  created_at: string;
+  updated_at: string;
+};
+
+const API_URL = "http://localhost:8000/api/notes"; // adjust if needed
 
 function App() {
-  const [count, setCount] = useState<number>(0)
-  const [loading, setLoading] = useState<boolean>(false)
+  const [title, setTitle] = useState("");
+  const [content, setContent] = useState("");
+  const [notes, setNotes] = useState<Note[]>([]);
+  const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    fetch(`${API_BASE}/count`)
-      .then(res => res.json())
-      .then(data => setCount(data.count))
-      .catch(err => console.error("Error fetching count:", err))
-  }, [])
-
-  const handleIncrement = async () => {
+  // 🔹 GET ALL NOTES
+  const fetchNotes = async () => {
+    setLoading(true);
     try {
-      setLoading(true)
-      const response = await fetch(`${API_BASE}/increment`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-      })
-      const data = await response.json()
-      setCount(data.count)
+      const res = await fetch(API_URL);
+      const data = await res.json();
+      setNotes(data);
     } catch (error) {
-      console.error("Error incrementing count:", error)
+      console.error("Failed to fetch notes", error);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
+
+  // 🔹 CREATE NOTE
+  const createNote = async () => {
+    if (!title.trim() || !content.trim()) return;
+
+    try {
+      const res = await fetch(API_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ title, content }),
+      });
+
+      if (!res.ok) throw new Error("Failed to create note");
+
+      const newNote: Note = await res.json();
+
+      // prepend new note
+      setNotes((prev) => [newNote, ...prev]);
+
+      setTitle("");
+      setContent("");
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  // 🔹 Load notes on page load
+  useEffect(() => {
+    fetchNotes();
+  }, []);
 
   return (
-    <div className="app-container">
-      <div className="card">
-        <h1 className="title">Counter Dashboard</h1>
-        <p className="subtitle">Connected to FastAPI backend</p>
+    <>
+      {/* CREATE NOTE */}
+      <div className="container">
+        <input
+          type="text"
+          placeholder="Note title"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+        />
 
-        <div className="count-display">
-          {count}
-        </div>
+        <textarea
+          placeholder="Type your text here..."
+          value={content}
+          onChange={(e) => setContent(e.target.value)}
+        />
 
-        <button 
-          className="primary-btn"
-          onClick={handleIncrement}
-          disabled={loading}
-        >
-          {loading ? "Updating..." : "Increment"}
+        <button className="cn-btn" onClick={createNote}>
+          Create Note
         </button>
       </div>
-    </div>
-  )
+
+      {/* NOTES LIST */}
+      <div>
+        <h1>Get All Notes</h1>
+
+        {loading && <p>Loading notes...</p>}
+
+        <div className="notes-container">
+          {!loading && notes.length === 0 ? (
+            <p>No notes available</p>
+          ) : (
+            notes.map((note) => (
+              <NoteCard key={note.id} note={note} />
+            ))
+          )}
+        </div>
+      </div>
+    </>
+  );
 }
 
-export default App
+export default App;
