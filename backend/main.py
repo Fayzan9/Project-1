@@ -9,12 +9,11 @@ from apis.tags import router as tags_router
 app = FastAPI(title="Notes Backend API")
 
 
-
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],  # Vite default
+    allow_origins=["http://localhost:5174"],  # frontend URL
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["*"],  # GET, POST, PUT, DELETE, OPTIONS
     allow_headers=["*"],
 )
 
