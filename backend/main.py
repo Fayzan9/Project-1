@@ -1,9 +1,10 @@
 import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from database import init_db
 from apis.notes import router as notes_router
 from apis.tags import router as tags_router
+from database import init_db
+
 
 
 app = FastAPI(title="Notes Backend API")
@@ -21,7 +22,11 @@ app.add_middleware(
 
 
 # Initialize DB file
-init_db()
+# init_db()
+
+@app.on_event("startup")
+def startup():
+    init_db()
 
 # Register routers
 app.include_router(notes_router)
