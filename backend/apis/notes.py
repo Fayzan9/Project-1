@@ -1,157 +1,101 @@
 from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel
-from uuid import uuid4
-from datetime import datetime
-
-from database import read_db, write_db
-from typing import List, Optional
+from typing import List
+from database.repositories.notes_repository import NotesRepository
+from model import NoteCreate, NoteResponse, NoteUpdate
 
 
 router = APIRouter(prefix="/api/notes", tags=["Notes"])
 
 
-# Request body schema
-class NoteCreate(BaseModel):
-    title: str
-    content: str
 
 
-# Response schema
-class NoteResponse(BaseModel):
-    id: str
-    title: str
-    content: str
-    tags: list
-    created_at: str
-    updated_at: str
-
-
-@router.post("/", response_model=NoteResponse)
-def create_note(note: NoteCreate):
-    db = read_db()
-
-    new_note = {
-        "id": str(uuid4()),
-        "title": note.title,
-        "content": note.content,
-        "tags": [],
-        "created_at": datetime.utcnow().isoformat(),
-        "updated_at": datetime.utcnow().isoformat()
-    }
-
-    db["notes"].append(new_note)
-    write_db(db)
-
-    return new_note
-
+@router.post("/", response_model=dict)
+def create_note_api(note: NoteCreate):
+    note_id = NotesRepository.create_note(
+        title=note.title,
+        content=note.content,
+        tags=note.tags
+    )
+    return {"id": note_id}
 
 
 @router.get("/", response_model=List[NoteResponse])
-def get_all_notes():
-    db = read_db()
-    return db["notes"]    
-
-
-@router.get("/{note_id}", response_model=NoteResponse)
-def get_note_by_id(note_id: str):
-    db = read_db()
-
-    for note in db["notes"]:
-        if note["id"] == note_id:
-            return note
-
-    raise HTTPException(status_code=404, detail="Note not found")    
+def get_notes_api():
+    return NotesRepository.get_all_notes()
 
 
 
-class NoteUpdate(BaseModel):
-    title: Optional[str] = None
-    content: Optional[str] = None
+@router.post("/{note_id}/tags/{tag_id}")
+def attach_tag_api(note_id: str, tag_id: str):
+    result = NotesRepository.attach_tag_to_note(note_id, tag_id)
+
+    if result == "NOTE_NOT_FOUND":
+        raise HTTPException(status_code=404, detail="Note not found")
+
+    if result == "TAG_NOT_FOUND":
+        raise HTTPException(status_code=404, detail="Tag not found")
+
+    if result == "ALREADY_ATTACHED":
+        raise HTTPException(status_code=400, detail="Tag already attached")
+
+    return {"message": "Tag attached successfully"}
 
 
-@router.put("/{note_id}", response_model=NoteResponse)
-def update_note(note_id: str, note: NoteUpdate):
-    db = read_db()
 
-    for existing_note in db["notes"]:
-        if existing_note["id"] == note_id:
+@router.delete("/{note_id}/tags/{tag_id}")
+def detach_tag_api(note_id: str, tag_id: str):
+    result = NotesRepository.detach_tag_from_note(note_id, tag_id)
 
-            if note.title is not None:
-                existing_note["title"] = note.title
+    if result == "NOT_ATTACHED":
+        raise HTTPException(status_code=404, detail="Tag not attached to note")
 
-            if note.content is not None:
-                existing_note["content"] = note.content
+    return {"message": "Tag detached successfully"}
 
-            existing_note["updated_at"] = datetime.utcnow().isoformat()
 
-            write_db(db)
-            return existing_note
 
-    raise HTTPException(status_code=404, detail="Note not found")
+
+@router.get("/{note_id}/tags")
+def get_note_tags_api(note_id: str):
+    tags = NotesRepository.get_tags_for_note(note_id)
+
+    if tags is None:
+        raise HTTPException(status_code=404, detail="Note not found")
+
+    return {"tags": tags}
+
+
+@router.get("/{tag_id}/notes")
+def get_notes_for_tag_api(tag_id: str):
+    notes = NotesRepository.get_notes_for_tag(tag_id)
+
+    if notes is None:
+        raise HTTPException(status_code=404, detail="Tag not found")
+
+    return {"notes": notes}
+
+
+
+
+
+@router.put("/{note_id}")
+def update_note_api(note_id: str, note: NoteUpdate):
+    result = NotesRepository.update_note(
+        note_id=note_id,
+        title=note.title,
+        content=note.content,
+    )
+
+    if result is None:
+        raise HTTPException(status_code=404, detail="Note not found")
+
+    return {"message": "Note updated successfully"}
 
 
 @router.delete("/{note_id}")
-def delete_note(note_id: str):
-    db = read_db()
+def delete_note_api(note_id: str):
+    result = NotesRepository.delete_note(note_id)
 
-    for index, note in enumerate(db["notes"]):
-        if note["id"] == note_id:
-            db["notes"].pop(index)
-            write_db(db)
-            return {"message": "Note deleted successfully"}
-
-    raise HTTPException(status_code=404, detail="Note not found")
-
-
-
-class TagAttach(BaseModel):
-    tag_id: str
-
-
-@router.post("/{note_id}/tags", response_model=NoteResponse)
-def attach_tag_to_note(note_id: str, payload: TagAttach):
-    db = read_db()
-
-    # find note
-    note = next((n for n in db["notes"] if n["id"] == note_id), None)
-    if not note:
+    if result is None:
         raise HTTPException(status_code=404, detail="Note not found")
 
-    # find tag
-    tag = next((t for t in db["tags"] if t["id"] == payload.tag_id), None)
-    if not tag:
-        raise HTTPException(status_code=404, detail="Tag not found")
-
-    # prevent duplicate tag attach
-    for existing_tag in note["tags"]:
-        if existing_tag["id"] == tag["id"]:
-            raise HTTPException(status_code=400, detail="Tag already attached")
-
-    note["tags"].append({
-        "id": tag["id"],
-        "name": tag["name"]
-    })
-
-    note["updated_at"] = datetime.utcnow().isoformat()
-    write_db(db)
-
-    return note
-
-@router.delete("/{note_id}/tags/{tag_id}", response_model=NoteResponse)
-def remove_tag_from_note(note_id: str, tag_id: str):
-    db = read_db()
-
-    # find note
-    note = next((n for n in db["notes"] if n["id"] == note_id), None)
-    if not note:
-        raise HTTPException(status_code=404, detail="Note not found")
-
-    # find tag inside note
-    for index, tag in enumerate(note["tags"]):
-        if tag["id"] == tag_id:
-            note["tags"].pop(index)
-            note["updated_at"] = datetime.utcnow().isoformat()
-            write_db(db)
-            return note
-
-    raise HTTPException(status_code=404, detail="Tag not attached to note")
+    return {"message": "Note deleted successfully"}

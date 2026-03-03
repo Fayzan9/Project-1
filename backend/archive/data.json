@@ -1,0 +1,24 @@
+{ 
+    "notes": [
+         { 
+            "id": "5e75d50e-fbba-4b0d-ab30-4f5e0153bfc3",
+             "title": "javascript",
+             "content": "javascript is language use for frontend to develop website.", 
+             "tags": [
+                 {
+                     "id": "8a37c399-2b2a-45fd-8977-2f9fc9356a65", 
+                     "name": "#frontend" 
+                     } 
+                    ], 
+                    "created_at": "2026-03-02T03:00:29.442469", 
+                    "updated_at": "2026-03-02T03:01:49.330942" 
+                    } 
+                ],
+                "tags": [
+                     { 
+                        "id": "8a37c399-2b2a-45fd-8977-2f9fc9356a65", 
+                        "name": "#frontend" 
+                        }
+                    ] 
+}
+
