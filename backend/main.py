@@ -4,8 +4,12 @@ from fastapi.middleware.cors import CORSMiddleware
 from apis.notes import router as notes_router
 from apis.tags import router as tags_router
 from database import init_db
+import logging
+from core.logging_config import setup_logging
+from fastapi.responses import JSONResponse
+setup_logging()
 
-
+logger = logging.getLogger(__name__)
 
 app = FastAPI(title="Notes Backend API")
 
@@ -19,10 +23,23 @@ app.add_middleware(
 )
 
 
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    logger.info(f"Incoming request: {request.method} {request.url}")
+
+    try:
+        response = await call_next(request)
+        logger.info(f"Response status: {response.status_code}")
+        return response
+
+    except Exception as e:
+        logger.exception(f"Unhandled error: {e}")
+        return JSONResponse(
+            status_code=500,
+            content={"detail": "Internal Server Error"}
+        )
 
 
-# Initialize DB file
-# init_db()
 
 @app.on_event("startup")
 def startup():

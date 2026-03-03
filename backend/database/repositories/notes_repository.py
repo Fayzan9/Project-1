@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from database.executor import execute_query
+from database.executor import execute_query,get_db
 from database.queries.notes_queries import *
 
 
@@ -12,36 +12,39 @@ class NotesRepository:
         note_id = str(uuid.uuid4())
         now = datetime.utcnow().isoformat()
 
-        execute_query(
-            CREATE_NOTE_QUERY,
-            (note_id, title, content, now, now),
-            commit=True
-        )
+        with get_db() as cursor:
 
-        for tag in tags:
-            tag_id = str(uuid.uuid4())
-
-            execute_query(
-                INSERT_OR_IGNORE_TAG_QUERY,
-                (tag_id, tag),
-                commit=True
+            cursor.execute(
+                CREATE_NOTE_QUERY,
+                (note_id, title, content, now, now)
             )
 
-            tag_row = execute_query(
-                SELECT_TAG_ID_BY_NAME,
-                (tag,),
-                fetchone=True
-            )
+            for tag in tags:
+                tag_id = str(uuid.uuid4())
 
-            tag_id = tag_row["id"]
+                # Insert tag if not exists
+                cursor.execute(
+                    INSERT_OR_IGNORE_TAG_QUERY,
+                    (tag_id, tag)
+                )
 
-            execute_query(
-                INSERT_NOTE_TAG,
-                (note_id, tag_id),
-                commit=True
-            )
+                # Get tag id
+                cursor.execute(
+                    SELECT_TAG_ID_BY_NAME,
+                    (tag,)
+                )
+                tag_row = cursor.fetchone()
+                tag_id = tag_row["id"]
+
+                # Insert relation
+                cursor.execute(
+                    INSERT_NOTE_TAG,
+                    (note_id, tag_id)
+                )
 
         return note_id
+
+
 
     @staticmethod
     def get_all_notes():
@@ -85,3 +88,5 @@ class NotesRepository:
         execute_query(DELETE_NOTE, (note_id,), commit=True)
 
         return True
+
+
